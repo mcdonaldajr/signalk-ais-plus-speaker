@@ -55,11 +55,19 @@ By default the speaker uses:
 
 ```json
 {
-  "signalKStream": "all"
+  "signalKStream": "targeted"
 }
 ```
 
-That is deliberate. Some Signal K installations do not reliably deliver granular `notifications.collision.*` subscriptions to external clients, while the full stream does include those deltas. The speaker filters locally and only acts on AIS Plus sound notifications. If you want to try the more selective subscription mode later, set `"signalKStream": "targeted"`.
+That keeps the WebSocket traffic small by subscribing only to `vessels.self.notifications.collision` and `vessels.self.notifications.collision.*`. If you are debugging a difficult Signal K stream problem, you can temporarily set `"signalKStream": "all"` and the speaker will filter locally.
+
+For normal use, keep:
+
+```json
+{
+  "debug": false
+}
+```
 
 Run it:
 
