@@ -115,6 +115,7 @@ The Lubuntu speaker can play a short stereo cue before each AIS Plus announcemen
 
 ```json
 {
+  "speechVolume": 0.65,
   "stereoPing": true,
   "pingSmallFrequencyHz": 1100,
   "pingMediumFrequencyHz": 760,
@@ -134,7 +135,7 @@ It uses one ping for the forward sector, meaning 10, 11, 12, 1, and 2 o'clock. O
 
 It also extracts the vessel size wording from AIS Plus messages. Large vessels use a lower tone, medium vessels use a mid tone, and small craft use a higher tone. This is local to the Lubuntu speaker app; it does not affect browser speech or the Pi announcer plugin.
 
-The generated sound uses a short attack, decaying tail, slight downward frequency sweep, and a small harmonic to make it more like a sonar ping. `pingVolume` is independent of Piper speech volume; values above `1.0` add extra gain with clipping protection.
+The generated sound uses a short attack, decaying tail, slight downward frequency sweep, and a small harmonic to make it more like a sonar ping. `pingVolume` is independent of Piper speech volume; values above `1.0` add extra gain with clipping protection. Use `speechVolume` to reduce or boost the spoken announcement separately.
 
 ## Signal K Source
 

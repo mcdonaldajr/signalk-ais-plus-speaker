@@ -11,6 +11,7 @@
   "voicesDir": "./voices",
   "voice": "en_GB-alan-medium",
   "speakerId": -1,
+  "speechVolume": 0.65,
   "dedupeSeconds": 2,
   "stereoPing": true,
   "pingFrequencyHz": 880,

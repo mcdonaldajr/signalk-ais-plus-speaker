@@ -163,6 +163,7 @@ function sanitizeConfig(input) {
   next.voicesDir = String(next.voicesDir || defaultConfig.voicesDir);
   next.voice = String(next.voice || defaultConfig.voice);
   next.speakerId = clampInteger(next.speakerId, -1, 1000, -1);
+  next.speechVolume = clampNumber(next.speechVolume, 0, 2, 0.65);
   next.dedupeSeconds = clampInteger(next.dedupeSeconds, 0, 600, 2);
   next.stereoPing = next.stereoPing !== false;
   next.pingFrequencyHz = clampInteger(next.pingFrequencyHz, 200, 2400, 880);
@@ -204,6 +205,7 @@ function publicConfig() {
     listenPort: config.listenPort,
     voice: config.voice,
     speakerId: config.speakerId,
+    speechVolume: config.speechVolume,
     dedupeSeconds: config.dedupeSeconds,
     stereoPing: config.stereoPing,
     pingFrequencyHz: config.pingFrequencyHz,
@@ -545,6 +547,7 @@ async function processQueue() {
   try {
     const speechFile = await synthesizePiperWav(entry.message);
     try {
+      await applyWavGain(speechFile, config.speechVolume);
       await playDirectionalPing(entry);
       if (config.pingSpeechGapMs > 0) {
         await sleep(config.pingSpeechGapMs);
@@ -701,6 +704,31 @@ function synthesizePiperWav(message) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function applyWavGain(file, gain) {
+  if (gain === 1) return;
+  const buffer = await fs.promises.readFile(file);
+  const dataOffset = findWavDataOffset(buffer);
+  if (dataOffset == null) {
+    throw new Error('Could not adjust speech volume: WAV data chunk not found');
+  }
+  for (let offset = dataOffset; offset + 1 < buffer.length; offset += 2) {
+    const sample = buffer.readInt16LE(offset);
+    buffer.writeInt16LE(clampPcm16(sample * gain), offset);
+  }
+  await fs.promises.writeFile(file, buffer);
+}
+
+function findWavDataOffset(buffer) {
+  let offset = 12;
+  while (offset + 8 <= buffer.length) {
+    const chunkId = buffer.toString('ascii', offset, offset + 4);
+    const chunkSize = buffer.readUInt32LE(offset + 4);
+    if (chunkId === 'data') return offset + 8;
+    offset += 8 + chunkSize + (chunkSize % 2);
+  }
+  return null;
 }
 
 function playWav(file) {
