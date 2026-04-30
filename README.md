@@ -116,13 +116,17 @@ The Lubuntu speaker can play a short stereo cue before each AIS Plus announcemen
 ```json
 {
   "stereoPing": true,
-  "pingFrequencyHz": 880,
+  "pingSmallFrequencyHz": 1100,
+  "pingMediumFrequencyHz": 760,
+  "pingLargeFrequencyHz": 440,
   "pingDurationMs": 180,
   "pingVolume": 0.35
 }
 ```
 
-The app extracts the clock bearing from the spoken message, for example `at 9 o'clock`. A 9 o'clock target pings left, 3 o'clock pings right, 12 o'clock pings centre, and 1 o'clock pings slightly right. This is local to the Lubuntu speaker app; it does not affect browser speech or the Pi announcer plugin.
+The app extracts the clock bearing from the spoken message, for example `at 9 o'clock`. A 9 o'clock target pings left, 3 o'clock pings right, 12 o'clock pings centre, and 1 o'clock pings slightly right.
+
+It also extracts the vessel size wording from AIS Plus messages. Large vessels use a lower tone, medium vessels use a mid tone, and small craft use a higher tone. This is local to the Lubuntu speaker app; it does not affect browser speech or the Pi announcer plugin.
 
 ## Signal K Source
 

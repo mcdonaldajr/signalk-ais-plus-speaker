@@ -166,6 +166,9 @@ function sanitizeConfig(input) {
   next.dedupeSeconds = clampInteger(next.dedupeSeconds, 0, 600, 2);
   next.stereoPing = next.stereoPing !== false;
   next.pingFrequencyHz = clampInteger(next.pingFrequencyHz, 200, 2400, 880);
+  next.pingSmallFrequencyHz = clampInteger(next.pingSmallFrequencyHz, 200, 2400, 1100);
+  next.pingMediumFrequencyHz = clampInteger(next.pingMediumFrequencyHz, 200, 2400, 760);
+  next.pingLargeFrequencyHz = clampInteger(next.pingLargeFrequencyHz, 200, 2400, 440);
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
   next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.35);
   next.debug = next.debug === true;
@@ -200,6 +203,9 @@ function publicConfig() {
     dedupeSeconds: config.dedupeSeconds,
     stereoPing: config.stereoPing,
     pingFrequencyHz: config.pingFrequencyHz,
+    pingSmallFrequencyHz: config.pingSmallFrequencyHz,
+    pingMediumFrequencyHz: config.pingMediumFrequencyHz,
+    pingLargeFrequencyHz: config.pingLargeFrequencyHz,
     pingDurationMs: config.pingDurationMs,
     pingVolume: config.pingVolume,
     debug: config.debug,
@@ -546,11 +552,12 @@ async function playDirectionalPing(entry) {
   if (!config.stereoPing) return;
   const clock = extractClockPosition(entry);
   if (!clock) return;
+  const size = extractVesselSize(entry);
   const pingFile = path.join('/tmp', `ais-plus-speaker-ping-${Date.now()}.wav`);
-  await fs.promises.writeFile(pingFile, createPingWav(clock));
+  await fs.promises.writeFile(pingFile, createPingWav(clock, size));
   try {
     await playWav(pingFile);
-    if (config.debug) logEvent('debug', `Stereo ping ${clock} o'clock`);
+    if (config.debug) logEvent('debug', `Stereo ping ${clock} o'clock ${size || 'default'}`);
   } finally {
     fs.rm(pingFile, { force: true }, () => {});
   }
@@ -563,7 +570,22 @@ function extractClockPosition(entry) {
   return match ? Number(match[1]) : null;
 }
 
-function createPingWav(clock) {
+function extractVesselSize(entry) {
+  const message = String(entry?.message || '').toLowerCase();
+  if (/\b(fast\s+)?large\s+vessel\b/.test(message)) return 'large';
+  if (/\bmedium\s+vessel\b/.test(message)) return 'medium';
+  if (/\bsmall\s+(craft|vessel)\b/.test(message)) return 'small';
+  return '';
+}
+
+function pingFrequencyForSize(size) {
+  if (size === 'large') return config.pingLargeFrequencyHz;
+  if (size === 'medium') return config.pingMediumFrequencyHz;
+  if (size === 'small') return config.pingSmallFrequencyHz;
+  return config.pingFrequencyHz;
+}
+
+function createPingWav(clock, size = '') {
   const sampleRate = 44100;
   const channels = 2;
   const bytesPerSample = 2;
@@ -574,6 +596,7 @@ function createPingWav(clock) {
   const leftGain = Math.cos((pan + 1) * Math.PI / 4);
   const rightGain = Math.sin((pan + 1) * Math.PI / 4);
   const amplitude = Math.round(32767 * config.pingVolume);
+  const frequency = pingFrequencyForSize(size);
 
   buffer.write('RIFF', 0);
   buffer.writeUInt32LE(36 + dataSize, 4);
@@ -592,7 +615,7 @@ function createPingWav(clock) {
   for (let i = 0; i < durationSamples; i += 1) {
     const t = i / sampleRate;
     const fade = Math.min(1, i / (sampleRate * 0.025), (durationSamples - i) / (sampleRate * 0.045));
-    const tone = Math.sin(2 * Math.PI * config.pingFrequencyHz * t);
+    const tone = Math.sin(2 * Math.PI * frequency * t);
     const sample = amplitude * tone * Math.max(0, fade);
     const offset = 44 + i * channels * bytesPerSample;
     buffer.writeInt16LE(Math.round(sample * leftGain), offset);
