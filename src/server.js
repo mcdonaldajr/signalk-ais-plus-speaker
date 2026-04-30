@@ -123,6 +123,8 @@ function loadConfig() {
 function sanitizeConfig(input) {
   const next = { ...defaultConfig, ...input };
   next.signalKUrl = String(next.signalKUrl || defaultConfig.signalKUrl).replace(/\/+$/, '');
+  next.signalKToken = String(next.signalKToken || '');
+  next.rejectUnauthorized = next.rejectUnauthorized !== false;
   next.listenHost = String(next.listenHost || defaultConfig.listenHost);
   next.listenPort = clampInteger(next.listenPort, 1, 65535, defaultConfig.listenPort);
   next.piperBinary = String(next.piperBinary || defaultConfig.piperBinary);
@@ -145,6 +147,8 @@ function clampInteger(value, min, max, fallback) {
 function publicConfig() {
   return {
     signalKUrl: config.signalKUrl,
+    hasSignalKToken: Boolean(config.signalKToken),
+    rejectUnauthorized: config.rejectUnauthorized,
     listenHost: config.listenHost,
     listenPort: config.listenPort,
     voice: config.voice,
@@ -193,7 +197,14 @@ function connectSignalK() {
   clearTimeout(reconnectTimer);
   const wsUrl = signalKWebSocketUrl();
   logEvent('info', `Connecting to Signal K at ${wsUrl}`);
-  signalKSocket = new WebSocket(wsUrl);
+  const headers = config.signalKToken
+    ? { Authorization: `Bearer ${config.signalKToken}` }
+    : {};
+  signalKSocket = new WebSocket(wsUrl, {
+    followRedirects: true,
+    headers,
+    rejectUnauthorized: config.rejectUnauthorized
+  });
 
   signalKSocket.on('open', () => {
     reconnectDelayMs = 1000;
@@ -224,6 +235,14 @@ function connectSignalK() {
 
   signalKSocket.on('error', error => {
     logEvent('error', `Signal K connection error: ${error.message}`);
+  });
+
+  signalKSocket.on('unexpected-response', (_request, response) => {
+    const location = response.headers.location ? ` Redirect target: ${response.headers.location}` : '';
+    const hint = response.statusCode === 301 || response.statusCode === 302
+      ? ' Use the real Signal K HTTPS port in signalKUrl, for example https://nemo3.local:3443, not the HTTP redirect port.'
+      : '';
+    logEvent('error', `Signal K rejected WebSocket with HTTP ${response.statusCode}.${location}${hint}`);
   });
 }
 

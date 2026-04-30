@@ -1,5 +1,7 @@
 {
   "signalKUrl": "http://localhost:3000",
+  "signalKToken": "",
+  "rejectUnauthorized": false,
   "listenHost": "0.0.0.0",
   "listenPort": 3420,
   "piperBinary": "./piper/piper",

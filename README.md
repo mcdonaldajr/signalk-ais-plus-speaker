@@ -20,7 +20,25 @@ Edit `config.json` if your Signal K server is not on this machine:
 
 ```json
 {
-  "signalKUrl": "http://nemo3.local:3000"
+  "signalKUrl": "https://nemo3.local:3443"
+}
+```
+
+Use the real Signal K port. If Signal K redirects HTTP to HTTPS, do not use the HTTP redirect port, because WebSocket subscriptions may fail with HTTP `302`. On many Signal K installs the HTTPS port is `3443`; on your local Mac test setup it has been `3444`.
+
+If your Signal K server uses a self-signed certificate, leave this in `config.json`:
+
+```json
+{
+  "rejectUnauthorized": false
+}
+```
+
+If Signal K security requires an access token, add it:
+
+```json
+{
+  "signalKToken": "paste-token-here"
 }
 ```
 
