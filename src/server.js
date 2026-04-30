@@ -26,6 +26,12 @@ let lastMessageKey = '';
 let lastMessageAt = 0;
 let recentEvents = [];
 let clients = new Set();
+let stats = {
+  streamMessages: 0,
+  notificationUpdates: 0,
+  soundNotifications: 0,
+  filteredNotifications: 0
+};
 
 const app = express();
 const server = http.createServer(app);
@@ -133,6 +139,7 @@ function sanitizeConfig(input) {
   next.voice = String(next.voice || defaultConfig.voice);
   next.speakerId = clampInteger(next.speakerId, -1, 1000, -1);
   next.dedupeSeconds = clampInteger(next.dedupeSeconds, 0, 600, 2);
+  next.debug = next.debug === true;
   next.volumeCommand = String(next.volumeCommand || '');
   next.enabled = next.enabled !== false;
   return next;
@@ -154,6 +161,7 @@ function publicConfig() {
     voice: config.voice,
     speakerId: config.speakerId,
     dedupeSeconds: config.dedupeSeconds,
+    debug: config.debug,
     enabled: config.enabled
   };
 }
@@ -210,10 +218,17 @@ function connectSignalK() {
     reconnectDelayMs = 1000;
     logEvent('info', 'Connected to Signal K');
     signalKSocket.send(JSON.stringify({
-      context: 'vessels.self',
       subscribe: [
-        { path: 'notifications.collision', policy: 'instant' },
-        { path: 'notifications.collision.*', policy: 'instant' }
+        {
+          context: 'vessels.self',
+          path: 'notifications.collision',
+          policy: 'instant'
+        },
+        {
+          context: 'vessels.self',
+          path: 'notifications.collision.*',
+          policy: 'instant'
+        }
       ]
     }));
     broadcast();
@@ -221,7 +236,10 @@ function connectSignalK() {
 
   signalKSocket.on('message', data => {
     try {
-      handleSignalKDelta(JSON.parse(data.toString()));
+      stats.streamMessages += 1;
+      const message = JSON.parse(data.toString());
+      if (config.debug) logEvent('debug', `Stream message ${JSON.stringify(compactDeltaForLog(message))}`);
+      handleSignalKDelta(message);
     } catch (error) {
       logEvent('error', `Could not parse Signal K message: ${error.message}`);
     }
@@ -277,11 +295,25 @@ function handleNotificationValue(value, source) {
 }
 
 function handleNotification(pathName, value, source) {
-  if (!value || typeof value !== 'object') return;
+  stats.notificationUpdates += 1;
+  if (!value || typeof value !== 'object') {
+    stats.filteredNotifications += 1;
+    return;
+  }
   const methods = normalizeMethods(value.method);
   const announcement = value.data?.announcement || {};
   const message = String(value.message || '').trim();
-  if (!message || !methods.includes('sound') || announcement.shouldAnnounce === false) return;
+  if (!message || !methods.includes('sound') || announcement.shouldAnnounce === false) {
+    stats.filteredNotifications += 1;
+    if (config.debug) {
+      logEvent(
+        'debug',
+        `Filtered ${pathName}: message=${Boolean(message)} methods=${methods.join(',') || 'none'} shouldAnnounce=${announcement.shouldAnnounce}`
+      );
+    }
+    return;
+  }
+  stats.soundNotifications += 1;
 
   const entry = {
     id: String(announcement.id || `${pathName}-${Date.now()}`),
@@ -401,7 +433,18 @@ function getStatus() {
     currentMessage,
     lastMessage,
     voice: selectedVoice()?.id || '',
+    stats,
     events: recentEvents.slice(-10).reverse()
+  };
+}
+
+function compactDeltaForLog(delta) {
+  return {
+    context: delta?.context,
+    updates: (delta?.updates || []).map(update => ({
+      source: update.$source,
+      paths: (update.values || []).map(value => value.path)
+    }))
   };
 }
 
