@@ -42,6 +42,16 @@ If Signal K security requires an access token, add it:
 }
 ```
 
+By default the speaker uses:
+
+```json
+{
+  "signalKStream": "all"
+}
+```
+
+That is deliberate. Some Signal K installations do not reliably deliver granular `notifications.collision.*` subscriptions to external clients, while the full stream does include those deltas. The speaker filters locally and only acts on AIS Plus sound notifications. If you want to try the more selective subscription mode later, set `"signalKStream": "targeted"`.
+
 Run it:
 
 ```bash

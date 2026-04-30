@@ -129,6 +129,9 @@ function loadConfig() {
 function sanitizeConfig(input) {
   const next = { ...defaultConfig, ...input };
   next.signalKUrl = String(next.signalKUrl || defaultConfig.signalKUrl).replace(/\/+$/, '');
+  next.signalKStream = ['all', 'targeted'].includes(next.signalKStream)
+    ? next.signalKStream
+    : 'all';
   next.signalKToken = String(next.signalKToken || '');
   next.rejectUnauthorized = next.rejectUnauthorized !== false;
   next.listenHost = String(next.listenHost || defaultConfig.listenHost);
@@ -154,6 +157,7 @@ function clampInteger(value, min, max, fallback) {
 function publicConfig() {
   return {
     signalKUrl: config.signalKUrl,
+    signalKStream: config.signalKStream,
     hasSignalKToken: Boolean(config.signalKToken),
     rejectUnauthorized: config.rejectUnauthorized,
     listenHost: config.listenHost,
@@ -197,7 +201,7 @@ function signalKWebSocketUrl() {
   const url = new URL(config.signalKUrl);
   url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
   url.pathname = '/signalk/v1/stream';
-  url.search = 'subscribe=none';
+  url.search = `subscribe=${config.signalKStream === 'targeted' ? 'none' : 'all'}`;
   return url.toString();
 }
 
@@ -217,20 +221,24 @@ function connectSignalK() {
   signalKSocket.on('open', () => {
     reconnectDelayMs = 1000;
     logEvent('info', 'Connected to Signal K');
-    signalKSocket.send(JSON.stringify({
-      context: 'vessels.self',
-      announceNewPaths: true,
-      subscribe: [
-        {
-          path: 'notifications.collision',
-          policy: 'instant'
-        },
-        {
-          path: 'notifications.collision.*',
-          policy: 'instant'
-        }
-      ]
-    }));
+    if (config.signalKStream === 'targeted') {
+      signalKSocket.send(JSON.stringify({
+        context: 'vessels.self',
+        announceNewPaths: true,
+        subscribe: [
+          {
+            path: 'notifications.collision',
+            policy: 'instant',
+            format: 'delta'
+          },
+          {
+            path: 'notifications.collision.*',
+            policy: 'instant',
+            format: 'delta'
+          }
+        ]
+      }));
+    }
     broadcast();
   });
 

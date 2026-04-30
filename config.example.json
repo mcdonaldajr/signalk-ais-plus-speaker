@@ -1,5 +1,6 @@
 {
   "signalKUrl": "http://localhost:3000",
+  "signalKStream": "all",
   "signalKToken": "",
   "rejectUnauthorized": false,
   "listenHost": "0.0.0.0",
