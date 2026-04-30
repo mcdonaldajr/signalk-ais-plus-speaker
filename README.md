@@ -42,6 +42,15 @@ If Signal K security requires an access token, add it:
 }
 ```
 
+Or use the web UI:
+
+1. Open `http://localhost:3420`.
+2. Press **Request Signal K Access**.
+3. In Signal K Admin, approve the **AIS Plus Speaker** device access request.
+4. Press **Check Access**, or wait a few seconds for the speaker to poll automatically.
+
+The token is saved in `config.json` and sent as a WebSocket `Authorization: Bearer ...` header.
+
 By default the speaker uses:
 
 ```json

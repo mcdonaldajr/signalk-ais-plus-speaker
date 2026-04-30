@@ -3,8 +3,11 @@ const controls = {
   signalKUrl: document.getElementById('signalKUrl'),
   voice: document.getElementById('voice'),
   saveButton: document.getElementById('saveButton'),
+  accessButton: document.getElementById('accessButton'),
+  pollAccessButton: document.getElementById('pollAccessButton'),
   testButton: document.getElementById('testButton'),
   repeatButton: document.getElementById('repeatButton'),
+  accessStatus: document.getElementById('accessStatus'),
   connectionText: document.getElementById('connectionText'),
   statusPill: document.getElementById('statusPill'),
   lastMessage: document.getElementById('lastMessage'),
@@ -27,6 +30,7 @@ async function loadConfig() {
     controls.voice.appendChild(option);
   }
   controls.voice.value = data.config.voice;
+  renderAccess(data.config);
 }
 
 async function saveConfig() {
@@ -51,10 +55,31 @@ async function saveConfig() {
 async function postAction(url, button) {
   button.disabled = true;
   try {
-    await fetch(url, { method: 'POST' });
+    const response = await fetch(url, { method: 'POST' });
+    if (url.includes('access')) {
+      const data = await response.json();
+      renderAccess({ ...loadedConfig, ...data });
+    }
   } finally {
     button.disabled = false;
   }
+}
+
+function renderAccess(config) {
+  const request = config.accessRequest || {};
+  if (config.hasSignalKToken) {
+    controls.accessStatus.textContent = 'Signal K access approved; token saved.';
+    return;
+  }
+  if (request.permission === 'DENIED') {
+    controls.accessStatus.textContent = 'Signal K access denied.';
+    return;
+  }
+  if (request.href) {
+    controls.accessStatus.textContent = `Signal K access ${request.state || 'pending'}. Approve AIS Plus Speaker in Signal K, then press Check Access.`;
+    return;
+  }
+  controls.accessStatus.textContent = 'Signal K access not requested.';
 }
 
 function applyStatus(status) {
@@ -94,6 +119,8 @@ function connectEvents() {
 }
 
 controls.saveButton.addEventListener('click', saveConfig);
+controls.accessButton.addEventListener('click', () => postAction('/api/access-request', controls.accessButton));
+controls.pollAccessButton.addEventListener('click', () => postAction('/api/access-poll', controls.pollAccessButton));
 controls.testButton.addEventListener('click', () => postAction('/api/test', controls.testButton));
 controls.repeatButton.addEventListener('click', () => postAction('/api/repeat', controls.repeatButton));
 controls.enabled.addEventListener('change', saveConfig);

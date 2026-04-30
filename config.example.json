@@ -2,6 +2,7 @@
   "signalKUrl": "http://localhost:3000",
   "signalKStream": "all",
   "signalKToken": "",
+  "accessRequest": {},
   "rejectUnauthorized": false,
   "listenHost": "0.0.0.0",
   "listenPort": 3420,

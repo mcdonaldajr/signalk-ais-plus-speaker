@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import express from 'express';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
+import https from 'node:https';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +28,7 @@ let lastMessageKey = '';
 let lastMessageAt = 0;
 let recentEvents = [];
 let clients = new Set();
+let accessPollTimer = null;
 let stats = {
   streamMessages: 0,
   notificationUpdates: 0,
@@ -88,6 +91,24 @@ app.post('/api/stop', (_req, res) => {
   broadcast();
 });
 
+app.post('/api/access-request', async (_req, res) => {
+  try {
+    const response = await requestSignalKAccess();
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/access-poll', async (_req, res) => {
+  try {
+    const response = await pollSignalKAccess();
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/events', (_req, res) => {
   res.json({ events: recentEvents.slice().reverse() });
 });
@@ -133,6 +154,7 @@ function sanitizeConfig(input) {
     ? next.signalKStream
     : 'all';
   next.signalKToken = String(next.signalKToken || '');
+  next.accessRequest = sanitizeAccessRequest(next.accessRequest);
   next.rejectUnauthorized = next.rejectUnauthorized !== false;
   next.listenHost = String(next.listenHost || defaultConfig.listenHost);
   next.listenPort = clampInteger(next.listenPort, 1, 65535, defaultConfig.listenPort);
@@ -159,6 +181,7 @@ function publicConfig() {
     signalKUrl: config.signalKUrl,
     signalKStream: config.signalKStream,
     hasSignalKToken: Boolean(config.signalKToken),
+    accessRequest: config.accessRequest,
     rejectUnauthorized: config.rejectUnauthorized,
     listenHost: config.listenHost,
     listenPort: config.listenPort,
@@ -167,6 +190,18 @@ function publicConfig() {
     dedupeSeconds: config.dedupeSeconds,
     debug: config.debug,
     enabled: config.enabled
+  };
+}
+
+function sanitizeAccessRequest(value) {
+  const request = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  return {
+    clientId: String(request.clientId || ''),
+    href: String(request.href || ''),
+    state: String(request.state || ''),
+    permission: String(request.permission || ''),
+    expirationTime: String(request.expirationTime || ''),
+    message: String(request.message || '')
   };
 }
 
@@ -269,6 +304,114 @@ function connectSignalK() {
       ? ' Use the real Signal K HTTPS port in signalKUrl, for example https://nemo3.local:3443, not the HTTP redirect port.'
       : '';
     logEvent('error', `Signal K rejected WebSocket with HTTP ${response.statusCode}.${location}${hint}`);
+  });
+}
+
+async function requestSignalKAccess() {
+  if (!config.accessRequest.clientId) {
+    config.accessRequest.clientId = crypto.randomUUID();
+  }
+  const response = await signalKJsonRequest('/signalk/v1/access/requests', {
+    method: 'POST',
+    body: {
+      clientId: config.accessRequest.clientId,
+      description: 'AIS Plus Speaker'
+    }
+  });
+  config.accessRequest.state = response.body?.state || `HTTP ${response.statusCode}`;
+  config.accessRequest.href = response.body?.href || config.accessRequest.href;
+  config.accessRequest.permission = '';
+  config.accessRequest.message = response.body?.message || '';
+  writeJson(configPath, config);
+  logEvent('info', `Signal K access request ${config.accessRequest.state}`);
+  startAccessPolling();
+  broadcast();
+  return { accessRequest: config.accessRequest, hasSignalKToken: Boolean(config.signalKToken) };
+}
+
+async function pollSignalKAccess() {
+  if (!config.accessRequest.href) {
+    throw new Error('No pending access request. Press Request Signal K Access first.');
+  }
+
+  const response = await signalKJsonRequest(config.accessRequest.href);
+  const accessRequest = response.body?.accessRequest || {};
+  config.accessRequest.state = response.body?.state || `HTTP ${response.statusCode}`;
+  config.accessRequest.permission = accessRequest.permission || '';
+  config.accessRequest.expirationTime = accessRequest.expirationTime || '';
+  config.accessRequest.message = response.body?.message || '';
+
+  if (accessRequest.permission === 'APPROVED' && accessRequest.token) {
+    config.signalKToken = accessRequest.token;
+    logEvent('success', 'Signal K access approved; token saved');
+    clearTimeout(accessPollTimer);
+    signalKSocket?.close();
+    connectSignalK();
+  } else if (accessRequest.permission === 'DENIED') {
+    logEvent('error', 'Signal K access denied');
+    clearTimeout(accessPollTimer);
+  } else {
+    logEvent('info', `Signal K access ${config.accessRequest.state}`);
+    startAccessPolling();
+  }
+
+  writeJson(configPath, config);
+  broadcast();
+  return { accessRequest: config.accessRequest, hasSignalKToken: Boolean(config.signalKToken) };
+}
+
+function startAccessPolling() {
+  clearTimeout(accessPollTimer);
+  if (!config.accessRequest.href || config.accessRequest.permission) return;
+  accessPollTimer = setTimeout(() => {
+    pollSignalKAccess().catch(error => logEvent('error', `Access poll failed: ${error.message}`));
+  }, 5000);
+}
+
+function signalKJsonRequest(requestPath, options = {}) {
+  const base = new URL(config.signalKUrl);
+  const url = new URL(requestPath, base);
+  const body = options.body ? JSON.stringify(options.body) : null;
+  const client = url.protocol === 'https:' ? https : http;
+  const agent = url.protocol === 'https:'
+    ? new https.Agent({ rejectUnauthorized: config.rejectUnauthorized })
+    : undefined;
+  const headers = {
+    Accept: 'application/json',
+    ...(body ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } : {}),
+    ...(config.signalKToken ? { Authorization: `Bearer ${config.signalKToken}` } : {})
+  };
+
+  return new Promise((resolve, reject) => {
+    const request = client.request(
+      url,
+      { method: options.method || 'GET', headers, agent },
+      response => {
+        let data = '';
+        response.setEncoding('utf8');
+        response.on('data', chunk => {
+          data += chunk;
+        });
+        response.on('end', () => {
+          let parsed = {};
+          if (data.trim()) {
+            try {
+              parsed = JSON.parse(data);
+            } catch {
+              parsed = { message: data.trim() };
+            }
+          }
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve({ statusCode: response.statusCode, body: parsed });
+          } else {
+            reject(new Error(`Signal K HTTP ${response.statusCode}: ${parsed.message || data.trim()}`));
+          }
+        });
+      }
+    );
+    request.on('error', reject);
+    if (body) request.write(body);
+    request.end();
   });
 }
 
@@ -474,6 +617,7 @@ function broadcast() {
 
 function shutdown() {
   clearTimeout(reconnectTimer);
+  clearTimeout(accessPollTimer);
   signalKSocket?.close();
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 2000).unref();

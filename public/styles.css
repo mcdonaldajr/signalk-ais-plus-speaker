@@ -114,6 +114,11 @@ button:disabled {
   line-height: 1.4;
 }
 
+.subtle {
+  color: #5d6b76;
+  line-height: 1.35;
+}
+
 .events {
   display: grid;
   gap: 8px;
