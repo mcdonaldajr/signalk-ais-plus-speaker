@@ -77,6 +77,21 @@ select {
   min-height: 44px;
 }
 
+input[type="range"] {
+  width: 100%;
+}
+
+output {
+  color: #5d6b76;
+  font-variant-numeric: tabular-nums;
+}
+
+.sliderGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 button {
   border: 1px solid #174f7a;
   background: #176da3;
@@ -168,5 +183,11 @@ button:disabled {
   .pill {
     background: #233342;
     color: #b9d8ee;
+  }
+}
+
+@media (max-width: 620px) {
+  .sliderGrid {
+    grid-template-columns: 1fr;
   }
 }

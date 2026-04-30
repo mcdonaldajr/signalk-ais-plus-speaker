@@ -170,8 +170,11 @@ function sanitizeConfig(input) {
   next.pingSmallFrequencyHz = clampInteger(next.pingSmallFrequencyHz, 200, 2400, 1100);
   next.pingMediumFrequencyHz = clampInteger(next.pingMediumFrequencyHz, 200, 2400, 760);
   next.pingLargeFrequencyHz = clampInteger(next.pingLargeFrequencyHz, 200, 2400, 440);
+  next.pingSmallVolume = clampNumber(next.pingSmallVolume, 0, 4, 1.3);
+  next.pingMediumVolume = clampNumber(next.pingMediumVolume, 0, 4, 1.8);
+  next.pingLargeVolume = clampNumber(next.pingLargeVolume, 0, 4, 2.4);
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
-  next.pingVolume = clampNumber(next.pingVolume, 0, 4, 2.2);
+  next.pingVolume = clampNumber(next.pingVolume, 0, 4, 1);
   next.pingDoubleGapMs = clampInteger(next.pingDoubleGapMs, 20, 1000, 90);
   next.pingSweepRatio = clampNumber(next.pingSweepRatio, 0.35, 1, 0.72);
   next.pingHarmonic = clampNumber(next.pingHarmonic, 0, 0.6, 0.18);
@@ -212,6 +215,9 @@ function publicConfig() {
     pingSmallFrequencyHz: config.pingSmallFrequencyHz,
     pingMediumFrequencyHz: config.pingMediumFrequencyHz,
     pingLargeFrequencyHz: config.pingLargeFrequencyHz,
+    pingSmallVolume: config.pingSmallVolume,
+    pingMediumVolume: config.pingMediumVolume,
+    pingLargeVolume: config.pingLargeVolume,
     pingDurationMs: config.pingDurationMs,
     pingVolume: config.pingVolume,
     pingDoubleGapMs: config.pingDoubleGapMs,
@@ -604,6 +610,13 @@ function pingFrequencyForSize(size) {
   return config.pingFrequencyHz;
 }
 
+function pingVolumeForSize(size) {
+  if (size === 'large') return config.pingLargeVolume;
+  if (size === 'medium') return config.pingMediumVolume;
+  if (size === 'small') return config.pingSmallVolume;
+  return config.pingVolume;
+}
+
 function pingCountForClock(clock) {
   return clock >= 10 || clock <= 2 ? 1 : 2;
 }
@@ -620,7 +633,7 @@ function createPingWav(clock, size = '', pingCount = 1) {
   const pan = clockToPan(clock);
   const leftGain = Math.cos((pan + 1) * Math.PI / 4);
   const rightGain = Math.sin((pan + 1) * Math.PI / 4);
-  const amplitude = Math.round(32767 * config.pingVolume);
+  const amplitude = Math.round(32767 * config.pingVolume * pingVolumeForSize(size));
   const frequency = pingFrequencyForSize(size);
 
   buffer.write('RIFF', 0);

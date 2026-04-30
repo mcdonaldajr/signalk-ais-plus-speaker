@@ -2,6 +2,11 @@ const controls = {
   enabled: document.getElementById('enabled'),
   signalKUrl: document.getElementById('signalKUrl'),
   voice: document.getElementById('voice'),
+  stereoPing: document.getElementById('stereoPing'),
+  speechVolume: document.getElementById('speechVolume'),
+  speechVolumeValue: document.getElementById('speechVolumeValue'),
+  pingVolume: document.getElementById('pingVolume'),
+  pingVolumeValue: document.getElementById('pingVolumeValue'),
   saveButton: document.getElementById('saveButton'),
   accessButton: document.getElementById('accessButton'),
   pollAccessButton: document.getElementById('pollAccessButton'),
@@ -30,6 +35,10 @@ async function loadConfig() {
     controls.voice.appendChild(option);
   }
   controls.voice.value = data.config.voice;
+  controls.stereoPing.checked = data.config.stereoPing;
+  controls.speechVolume.value = data.config.speechVolume;
+  controls.pingVolume.value = data.config.pingVolume;
+  updateVolumeLabels();
   renderAccess(data.config);
 }
 
@@ -42,7 +51,10 @@ async function saveConfig() {
       body: JSON.stringify({
         enabled: controls.enabled.checked,
         signalKUrl: controls.signalKUrl.value,
-        voice: controls.voice.value
+        voice: controls.voice.value,
+        stereoPing: controls.stereoPing.checked,
+        speechVolume: Number(controls.speechVolume.value),
+        pingVolume: Number(controls.pingVolume.value)
       })
     });
     const data = await response.json();
@@ -63,6 +75,11 @@ async function postAction(url, button) {
   } finally {
     button.disabled = false;
   }
+}
+
+function updateVolumeLabels() {
+  controls.speechVolumeValue.textContent = Number(controls.speechVolume.value).toFixed(2);
+  controls.pingVolumeValue.textContent = Number(controls.pingVolume.value).toFixed(1);
 }
 
 function renderAccess(config) {
@@ -124,6 +141,11 @@ controls.pollAccessButton.addEventListener('click', () => postAction('/api/acces
 controls.testButton.addEventListener('click', () => postAction('/api/test', controls.testButton));
 controls.repeatButton.addEventListener('click', () => postAction('/api/repeat', controls.repeatButton));
 controls.enabled.addEventListener('change', saveConfig);
+controls.stereoPing.addEventListener('change', saveConfig);
+controls.speechVolume.addEventListener('input', updateVolumeLabels);
+controls.pingVolume.addEventListener('input', updateVolumeLabels);
+controls.speechVolume.addEventListener('change', saveConfig);
+controls.pingVolume.addEventListener('change', saveConfig);
 
 loadConfig().then(connectEvents).catch(error => {
   controls.connectionText.textContent = `Could not load config: ${error.message}`;
