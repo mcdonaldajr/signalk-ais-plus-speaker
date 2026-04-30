@@ -170,7 +170,8 @@ function sanitizeConfig(input) {
   next.pingMediumFrequencyHz = clampInteger(next.pingMediumFrequencyHz, 200, 2400, 760);
   next.pingLargeFrequencyHz = clampInteger(next.pingLargeFrequencyHz, 200, 2400, 440);
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
-  next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.35);
+  next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.65);
+  next.pingSpeechGapMs = clampInteger(next.pingSpeechGapMs, 0, 2000, 0);
   next.debug = next.debug === true;
   next.volumeCommand = String(next.volumeCommand || '');
   next.enabled = next.enabled !== false;
@@ -208,6 +209,7 @@ function publicConfig() {
     pingLargeFrequencyHz: config.pingLargeFrequencyHz,
     pingDurationMs: config.pingDurationMs,
     pingVolume: config.pingVolume,
+    pingSpeechGapMs: config.pingSpeechGapMs,
     debug: config.debug,
     enabled: config.enabled
   };
@@ -535,8 +537,16 @@ async function processQueue() {
   currentMessage = entry;
   broadcast();
   try {
-    await playDirectionalPing(entry);
-    await speakWithPiper(entry.message);
+    const speechFile = await synthesizePiperWav(entry.message);
+    try {
+      await playDirectionalPing(entry);
+      if (config.pingSpeechGapMs > 0) {
+        await sleep(config.pingSpeechGapMs);
+      }
+      await playWav(speechFile);
+    } finally {
+      fs.rm(speechFile, { force: true }, () => {});
+    }
     logEvent('success', `Spoken: ${entry.message}`);
   } catch (error) {
     logEvent('error', `Speech failed: ${error.message}`);
@@ -631,7 +641,7 @@ function clockToPan(clock) {
   return Math.max(-1, Math.min(1, pan));
 }
 
-function speakWithPiper(message) {
+function synthesizePiperWav(message) {
   const voice = selectedVoice();
   if (!voice) {
     throw new Error(`No Piper voices found in ${absoluteFromRoot(config.voicesDir)}`);
@@ -656,12 +666,14 @@ function speakWithPiper(message) {
         reject(new Error(`piper exited with code ${code}: ${stderr.trim()}`));
         return;
       }
-      playWav(outputFile).then(resolve, reject).finally(() => {
-        fs.rm(outputFile, { force: true }, () => {});
-      });
+      resolve(outputFile);
     });
     piper.stdin.end(`${message}\n`);
   });
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 function playWav(file) {

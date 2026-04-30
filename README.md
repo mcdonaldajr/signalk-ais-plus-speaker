@@ -120,7 +120,8 @@ The Lubuntu speaker can play a short stereo cue before each AIS Plus announcemen
   "pingMediumFrequencyHz": 760,
   "pingLargeFrequencyHz": 440,
   "pingDurationMs": 180,
-  "pingVolume": 0.35
+  "pingVolume": 0.65,
+  "pingSpeechGapMs": 0
 }
 ```
 
