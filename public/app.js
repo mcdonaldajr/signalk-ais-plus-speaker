@@ -12,7 +12,9 @@ const controls = {
   pollAccessButton: document.getElementById('pollAccessButton'),
   testButton: document.getElementById('testButton'),
   repeatButton: document.getElementById('repeatButton'),
+  clearBufferButton: document.getElementById('clearBufferButton'),
   accessStatus: document.getElementById('accessStatus'),
+  queueCount: document.getElementById('queueCount'),
   connectionText: document.getElementById('connectionText'),
   statusPill: document.getElementById('statusPill'),
   lastMessage: document.getElementById('lastMessage'),
@@ -110,7 +112,9 @@ function applyStatus(status) {
       : 'Idle';
   controls.statusPill.classList.toggle('speaking', status.isSpeaking);
   controls.lastMessage.textContent = status.lastMessage?.message || 'No AIS Plus message received yet.';
+  controls.queueCount.textContent = status.queueLength;
   controls.repeatButton.disabled = !status.lastMessage;
+  controls.clearBufferButton.disabled = status.queueLength === 0;
   controls.events.innerHTML = '';
   for (const event of status.events || []) {
     const row = document.createElement('div');
@@ -140,6 +144,7 @@ controls.accessButton.addEventListener('click', () => postAction('/api/access-re
 controls.pollAccessButton.addEventListener('click', () => postAction('/api/access-poll', controls.pollAccessButton));
 controls.testButton.addEventListener('click', () => postAction('/api/test', controls.testButton));
 controls.repeatButton.addEventListener('click', () => postAction('/api/repeat', controls.repeatButton));
+controls.clearBufferButton.addEventListener('click', () => postAction('/api/stop', controls.clearBufferButton));
 controls.enabled.addEventListener('change', saveConfig);
 controls.stereoPing.addEventListener('change', saveConfig);
 controls.speechVolume.addEventListener('input', updateVolumeLabels);

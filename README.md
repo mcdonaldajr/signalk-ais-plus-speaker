@@ -108,6 +108,7 @@ The app discovers `.onnx` voice files in `voices/`. Select a voice in the web UI
 - **Voice**: selects the Piper voice.
 - **Sound Check**: speaks a local test message.
 - **Repeat Last**: replays the last received AIS Plus message.
+- **Clear Buffer**: drops queued announcements if they are too old to be useful.
 
 ## Stereo Ping
 
