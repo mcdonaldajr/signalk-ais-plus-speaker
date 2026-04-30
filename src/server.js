@@ -172,6 +172,8 @@ function sanitizeConfig(input) {
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
   next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.65);
   next.pingDoubleGapMs = clampInteger(next.pingDoubleGapMs, 20, 1000, 90);
+  next.pingSweepRatio = clampNumber(next.pingSweepRatio, 0.35, 1, 0.72);
+  next.pingHarmonic = clampNumber(next.pingHarmonic, 0, 0.6, 0.18);
   next.pingSpeechGapMs = clampInteger(next.pingSpeechGapMs, 0, 2000, 0);
   next.debug = next.debug === true;
   next.volumeCommand = String(next.volumeCommand || '');
@@ -211,6 +213,8 @@ function publicConfig() {
     pingDurationMs: config.pingDurationMs,
     pingVolume: config.pingVolume,
     pingDoubleGapMs: config.pingDoubleGapMs,
+    pingSweepRatio: config.pingSweepRatio,
+    pingHarmonic: config.pingHarmonic,
     pingSpeechGapMs: config.pingSpeechGapMs,
     debug: config.debug,
     enabled: config.enabled
@@ -634,12 +638,18 @@ function createPingWav(clock, size = '', pingCount = 1) {
     const cycleSamples = toneSamples + gapSamples;
     const cycleOffset = cycleSamples > 0 ? i % cycleSamples : i;
     const inTone = cycleOffset < toneSamples;
+    const progress = inTone ? cycleOffset / toneSamples : 0;
     const t = cycleOffset / sampleRate;
-    const fade = inTone
-      ? Math.min(1, cycleOffset / (sampleRate * 0.025), (toneSamples - cycleOffset) / (sampleRate * 0.045))
+    const attack = inTone ? Math.min(1, cycleOffset / (sampleRate * 0.012)) : 0;
+    const decay = inTone ? Math.exp(-5.2 * progress) : 0;
+    const fadeOut = inTone ? Math.min(1, (toneSamples - cycleOffset) / (sampleRate * 0.025)) : 0;
+    const envelope = attack * decay * fadeOut;
+    const sweptFrequency = frequency * (1 - (1 - config.pingSweepRatio) * progress);
+    const phase = 2 * Math.PI * sweptFrequency * t;
+    const tone = inTone
+      ? Math.sin(phase) + config.pingHarmonic * Math.sin(phase * 2.01)
       : 0;
-    const tone = inTone ? Math.sin(2 * Math.PI * frequency * t) : 0;
-    const sample = amplitude * tone * Math.max(0, fade);
+    const sample = amplitude * tone * Math.max(0, envelope);
     const offset = 44 + i * channels * bytesPerSample;
     buffer.writeInt16LE(Math.round(sample * leftGain), offset);
     buffer.writeInt16LE(Math.round(sample * rightGain), offset + 2);
