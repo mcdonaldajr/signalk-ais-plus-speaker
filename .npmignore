@@ -1,0 +1,7 @@
+node_modules/
+config.json
+voices/
+piper/
+*.wav
+*.log
+.DS_Store

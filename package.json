@@ -1,0 +1,27 @@
+{
+  "name": "signalk-ais-plus-speaker",
+  "version": "0.1.0",
+  "description": "Standalone Piper speech output app for AIS Plus Signal K announcements.",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "signalk-ais-plus-speaker": "src/server.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "check": "node --check src/server.js"
+  },
+  "keywords": [
+    "signalk",
+    "ais",
+    "piper",
+    "tts",
+    "speech"
+  ],
+  "author": "Anthony McDonald",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.17.1"
+  }
+}

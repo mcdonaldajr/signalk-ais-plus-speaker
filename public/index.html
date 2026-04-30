@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AIS Plus Speaker</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="topbar">
+        <div>
+          <h1>AIS Plus Speaker</h1>
+          <p id="connectionText">Connecting...</p>
+        </div>
+        <div id="statusPill" class="pill">Idle</div>
+      </section>
+
+      <section class="panel controls">
+        <label class="check">
+          <input id="enabled" type="checkbox">
+          <span>Enabled</span>
+        </label>
+
+        <label>
+          <span>Signal K server</span>
+          <input id="signalKUrl" type="url" placeholder="http://nemo3.local:3000">
+        </label>
+
+        <label>
+          <span>Piper voice</span>
+          <select id="voice"></select>
+        </label>
+
+        <div class="buttonRow">
+          <button id="saveButton" type="button">Save</button>
+          <button id="testButton" type="button">Sound Check</button>
+          <button id="repeatButton" type="button">Repeat Last</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Last Message</h2>
+        <p id="lastMessage" class="message">No AIS Plus message received yet.</p>
+      </section>
+
+      <section class="panel">
+        <h2>Recent Events</h2>
+        <div id="events" class="events"></div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

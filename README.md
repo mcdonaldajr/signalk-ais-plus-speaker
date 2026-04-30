@@ -1,0 +1,81 @@
+# SignalK AIS Plus Speaker
+
+Standalone Piper speech output for AIS Plus.
+
+AIS Plus remains the alarm brain. This app connects to the Signal K WebSocket stream, listens for `vessels.self.notifications.collision.*` sound notifications, and speaks the supplied message using local Piper.
+
+It is intended for a Lubuntu cockpit/display machine where you want the Piper voice instead of browser speech.
+
+## Install on Lubuntu
+
+```bash
+sudo apt update
+sudo apt install -y git curl tar nodejs npm alsa-utils
+git clone https://github.com/mcdonaldajr/signalk-ais-plus-speaker.git
+cd signalk-ais-plus-speaker
+./bin/install-lubuntu.sh
+```
+
+Edit `config.json` if your Signal K server is not on this machine:
+
+```json
+{
+  "signalKUrl": "http://nemo3.local:3000"
+}
+```
+
+Run it:
+
+```bash
+npm start
+```
+
+Open the control page:
+
+```text
+http://localhost:3420
+```
+
+## Optional systemd service
+
+```bash
+sudo cp systemd/signalk-ais-plus-speaker@.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now signalk-ais-plus-speaker@$USER
+```
+
+If you installed somewhere other than `/home/$USER/signalk-ais-plus-speaker`, edit the service file first.
+
+## Voices
+
+The installer downloads these British Piper voices from the Rhasspy Piper voice repository:
+
+- `en_GB-alan-medium`
+- `en_GB-alan-low`
+- `en_GB-northern_english_male-medium`
+- `en_GB-semaine-medium`
+
+The app discovers `.onnx` voice files in `voices/`. Select a voice in the web UI and press **Save**.
+
+## Controls
+
+- **Enabled**: turns speech output on/off.
+- **Voice**: selects the Piper voice.
+- **Sound Check**: speaks a local test message.
+- **Repeat Last**: replays the last received AIS Plus message.
+
+## Signal K Source
+
+AIS Plus publishes sound requests as Signal K notifications under:
+
+```text
+vessels.self.notifications.collision.*
+```
+
+This app speaks only notifications where:
+
+- `method` includes `sound`
+- `message` is present
+- `data.announcement.shouldAnnounce` is not `false`
+
+That means AIS Plus still owns alarm timing, repeats, muting, and false-alarm reduction.

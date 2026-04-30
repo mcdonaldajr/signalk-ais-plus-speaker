@@ -1,0 +1,13 @@
+{
+  "signalKUrl": "http://localhost:3000",
+  "listenHost": "0.0.0.0",
+  "listenPort": 3420,
+  "piperBinary": "./piper/piper",
+  "audioPlayer": "aplay",
+  "voicesDir": "./voices",
+  "voice": "en_GB-alan-medium",
+  "speakerId": -1,
+  "dedupeSeconds": 2,
+  "volumeCommand": "",
+  "enabled": true
+}
