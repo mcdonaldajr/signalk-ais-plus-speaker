@@ -218,14 +218,14 @@ function connectSignalK() {
     reconnectDelayMs = 1000;
     logEvent('info', 'Connected to Signal K');
     signalKSocket.send(JSON.stringify({
+      context: 'vessels.self',
+      announceNewPaths: true,
       subscribe: [
         {
-          context: 'vessels.self',
           path: 'notifications.collision',
           policy: 'instant'
         },
         {
-          context: 'vessels.self',
           path: 'notifications.collision.*',
           policy: 'instant'
         }
