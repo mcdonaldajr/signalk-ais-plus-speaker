@@ -19,6 +19,7 @@
   "pingLargeFrequencyHz": 440,
   "pingDurationMs": 180,
   "pingVolume": 0.65,
+  "pingDoubleGapMs": 90,
   "pingSpeechGapMs": 0,
   "debug": false,
   "volumeCommand": "",

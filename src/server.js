@@ -171,6 +171,7 @@ function sanitizeConfig(input) {
   next.pingLargeFrequencyHz = clampInteger(next.pingLargeFrequencyHz, 200, 2400, 440);
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
   next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.65);
+  next.pingDoubleGapMs = clampInteger(next.pingDoubleGapMs, 20, 1000, 90);
   next.pingSpeechGapMs = clampInteger(next.pingSpeechGapMs, 0, 2000, 0);
   next.debug = next.debug === true;
   next.volumeCommand = String(next.volumeCommand || '');
@@ -209,6 +210,7 @@ function publicConfig() {
     pingLargeFrequencyHz: config.pingLargeFrequencyHz,
     pingDurationMs: config.pingDurationMs,
     pingVolume: config.pingVolume,
+    pingDoubleGapMs: config.pingDoubleGapMs,
     pingSpeechGapMs: config.pingSpeechGapMs,
     debug: config.debug,
     enabled: config.enabled
@@ -564,10 +566,10 @@ async function playDirectionalPing(entry) {
   if (!clock) return;
   const size = extractVesselSize(entry);
   const pingFile = path.join('/tmp', `ais-plus-speaker-ping-${Date.now()}.wav`);
-  await fs.promises.writeFile(pingFile, createPingWav(clock, size));
+  await fs.promises.writeFile(pingFile, createPingWav(clock, size, pingCountForClock(clock)));
   try {
     await playWav(pingFile);
-    if (config.debug) logEvent('debug', `Stereo ping ${clock} o'clock ${size || 'default'}`);
+    if (config.debug) logEvent('debug', `Stereo ping ${clock} o'clock ${size || 'default'} x${pingCountForClock(clock)}`);
   } finally {
     fs.rm(pingFile, { force: true }, () => {});
   }
@@ -595,11 +597,17 @@ function pingFrequencyForSize(size) {
   return config.pingFrequencyHz;
 }
 
-function createPingWav(clock, size = '') {
+function pingCountForClock(clock) {
+  return clock >= 10 || clock <= 2 ? 1 : 2;
+}
+
+function createPingWav(clock, size = '', pingCount = 1) {
   const sampleRate = 44100;
   const channels = 2;
   const bytesPerSample = 2;
-  const durationSamples = Math.max(1, Math.round(sampleRate * config.pingDurationMs / 1000));
+  const toneSamples = Math.max(1, Math.round(sampleRate * config.pingDurationMs / 1000));
+  const gapSamples = pingCount > 1 ? Math.max(0, Math.round(sampleRate * config.pingDoubleGapMs / 1000)) : 0;
+  const durationSamples = toneSamples * pingCount + gapSamples * (pingCount - 1);
   const dataSize = durationSamples * channels * bytesPerSample;
   const buffer = Buffer.alloc(44 + dataSize);
   const pan = clockToPan(clock);
@@ -623,9 +631,14 @@ function createPingWav(clock, size = '') {
   buffer.writeUInt32LE(dataSize, 40);
 
   for (let i = 0; i < durationSamples; i += 1) {
-    const t = i / sampleRate;
-    const fade = Math.min(1, i / (sampleRate * 0.025), (durationSamples - i) / (sampleRate * 0.045));
-    const tone = Math.sin(2 * Math.PI * frequency * t);
+    const cycleSamples = toneSamples + gapSamples;
+    const cycleOffset = cycleSamples > 0 ? i % cycleSamples : i;
+    const inTone = cycleOffset < toneSamples;
+    const t = cycleOffset / sampleRate;
+    const fade = inTone
+      ? Math.min(1, cycleOffset / (sampleRate * 0.025), (toneSamples - cycleOffset) / (sampleRate * 0.045))
+      : 0;
+    const tone = inTone ? Math.sin(2 * Math.PI * frequency * t) : 0;
     const sample = amplitude * tone * Math.max(0, fade);
     const offset = 44 + i * channels * bytesPerSample;
     buffer.writeInt16LE(Math.round(sample * leftGain), offset);

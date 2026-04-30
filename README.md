@@ -121,11 +121,14 @@ The Lubuntu speaker can play a short stereo cue before each AIS Plus announcemen
   "pingLargeFrequencyHz": 440,
   "pingDurationMs": 180,
   "pingVolume": 0.65,
+  "pingDoubleGapMs": 90,
   "pingSpeechGapMs": 0
 }
 ```
 
 The app extracts the clock bearing from the spoken message, for example `at 9 o'clock`. A 9 o'clock target pings left, 3 o'clock pings right, 12 o'clock pings centre, and 1 o'clock pings slightly right.
+
+It uses one ping for the forward sector, meaning 10, 11, 12, 1, and 2 o'clock. Other clock positions use a quick double ping at the same stereo position.
 
 It also extracts the vessel size wording from AIS Plus messages. Large vessels use a lower tone, medium vessels use a mid tone, and small craft use a higher tone. This is local to the Lubuntu speaker app; it does not affect browser speech or the Pi announcer plugin.
 
