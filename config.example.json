@@ -12,6 +12,10 @@
   "voice": "en_GB-alan-medium",
   "speakerId": -1,
   "dedupeSeconds": 2,
+  "stereoPing": true,
+  "pingFrequencyHz": 880,
+  "pingDurationMs": 180,
+  "pingVolume": 0.35,
   "debug": false,
   "volumeCommand": "",
   "enabled": true

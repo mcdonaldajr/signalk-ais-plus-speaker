@@ -109,6 +109,21 @@ The app discovers `.onnx` voice files in `voices/`. Select a voice in the web UI
 - **Sound Check**: speaks a local test message.
 - **Repeat Last**: replays the last received AIS Plus message.
 
+## Stereo Ping
+
+The Lubuntu speaker can play a short stereo cue before each AIS Plus announcement:
+
+```json
+{
+  "stereoPing": true,
+  "pingFrequencyHz": 880,
+  "pingDurationMs": 180,
+  "pingVolume": 0.35
+}
+```
+
+The app extracts the clock bearing from the spoken message, for example `at 9 o'clock`. A 9 o'clock target pings left, 3 o'clock pings right, 12 o'clock pings centre, and 1 o'clock pings slightly right. This is local to the Lubuntu speaker app; it does not affect browser speech or the Pi announcer plugin.
+
 ## Signal K Source
 
 AIS Plus publishes sound requests as Signal K notifications under:

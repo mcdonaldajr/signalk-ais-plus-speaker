@@ -164,6 +164,10 @@ function sanitizeConfig(input) {
   next.voice = String(next.voice || defaultConfig.voice);
   next.speakerId = clampInteger(next.speakerId, -1, 1000, -1);
   next.dedupeSeconds = clampInteger(next.dedupeSeconds, 0, 600, 2);
+  next.stereoPing = next.stereoPing !== false;
+  next.pingFrequencyHz = clampInteger(next.pingFrequencyHz, 200, 2400, 880);
+  next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
+  next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.35);
   next.debug = next.debug === true;
   next.volumeCommand = String(next.volumeCommand || '');
   next.enabled = next.enabled !== false;
@@ -174,6 +178,12 @@ function clampInteger(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.min(max, Math.max(min, Math.round(number)));
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
 }
 
 function publicConfig() {
@@ -188,6 +198,10 @@ function publicConfig() {
     voice: config.voice,
     speakerId: config.speakerId,
     dedupeSeconds: config.dedupeSeconds,
+    stereoPing: config.stereoPing,
+    pingFrequencyHz: config.pingFrequencyHz,
+    pingDurationMs: config.pingDurationMs,
+    pingVolume: config.pingVolume,
     debug: config.debug,
     enabled: config.enabled
   };
@@ -515,6 +529,7 @@ async function processQueue() {
   currentMessage = entry;
   broadcast();
   try {
+    await playDirectionalPing(entry);
     await speakWithPiper(entry.message);
     logEvent('success', `Spoken: ${entry.message}`);
   } catch (error) {
@@ -525,6 +540,72 @@ async function processQueue() {
     broadcast();
     processQueue();
   }
+}
+
+async function playDirectionalPing(entry) {
+  if (!config.stereoPing) return;
+  const clock = extractClockPosition(entry);
+  if (!clock) return;
+  const pingFile = path.join('/tmp', `ais-plus-speaker-ping-${Date.now()}.wav`);
+  await fs.promises.writeFile(pingFile, createPingWav(clock));
+  try {
+    await playWav(pingFile);
+    if (config.debug) logEvent('debug', `Stereo ping ${clock} o'clock`);
+  } finally {
+    fs.rm(pingFile, { force: true }, () => {});
+  }
+}
+
+function extractClockPosition(entry) {
+  const value = Number(entry?.clock ?? entry?.relativeClock);
+  if (Number.isFinite(value) && value >= 1 && value <= 12) return Math.round(value);
+  const match = String(entry?.message || '').match(/\bat\s+([1-9]|1[0-2])\s+o'?clock\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function createPingWav(clock) {
+  const sampleRate = 44100;
+  const channels = 2;
+  const bytesPerSample = 2;
+  const durationSamples = Math.max(1, Math.round(sampleRate * config.pingDurationMs / 1000));
+  const dataSize = durationSamples * channels * bytesPerSample;
+  const buffer = Buffer.alloc(44 + dataSize);
+  const pan = clockToPan(clock);
+  const leftGain = Math.cos((pan + 1) * Math.PI / 4);
+  const rightGain = Math.sin((pan + 1) * Math.PI / 4);
+  const amplitude = Math.round(32767 * config.pingVolume);
+
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + dataSize, 4);
+  buffer.write('WAVE', 8);
+  buffer.write('fmt ', 12);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(channels, 22);
+  buffer.writeUInt32LE(sampleRate, 24);
+  buffer.writeUInt32LE(sampleRate * channels * bytesPerSample, 28);
+  buffer.writeUInt16LE(channels * bytesPerSample, 32);
+  buffer.writeUInt16LE(bytesPerSample * 8, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(dataSize, 40);
+
+  for (let i = 0; i < durationSamples; i += 1) {
+    const t = i / sampleRate;
+    const fade = Math.min(1, i / (sampleRate * 0.025), (durationSamples - i) / (sampleRate * 0.045));
+    const tone = Math.sin(2 * Math.PI * config.pingFrequencyHz * t);
+    const sample = amplitude * tone * Math.max(0, fade);
+    const offset = 44 + i * channels * bytesPerSample;
+    buffer.writeInt16LE(Math.round(sample * leftGain), offset);
+    buffer.writeInt16LE(Math.round(sample * rightGain), offset + 2);
+  }
+
+  return buffer;
+}
+
+function clockToPan(clock) {
+  const angle = ((clock % 12) / 12) * Math.PI * 2;
+  const pan = Math.sin(angle);
+  return Math.max(-1, Math.min(1, pan));
 }
 
 function speakWithPiper(message) {
