@@ -170,7 +170,7 @@ function sanitizeConfig(input) {
   next.pingMediumFrequencyHz = clampInteger(next.pingMediumFrequencyHz, 200, 2400, 760);
   next.pingLargeFrequencyHz = clampInteger(next.pingLargeFrequencyHz, 200, 2400, 440);
   next.pingDurationMs = clampInteger(next.pingDurationMs, 50, 1000, 180);
-  next.pingVolume = clampNumber(next.pingVolume, 0, 1, 0.65);
+  next.pingVolume = clampNumber(next.pingVolume, 0, 4, 2.2);
   next.pingDoubleGapMs = clampInteger(next.pingDoubleGapMs, 20, 1000, 90);
   next.pingSweepRatio = clampNumber(next.pingSweepRatio, 0.35, 1, 0.72);
   next.pingHarmonic = clampNumber(next.pingHarmonic, 0, 0.6, 0.18);
@@ -651,11 +651,15 @@ function createPingWav(clock, size = '', pingCount = 1) {
       : 0;
     const sample = amplitude * tone * Math.max(0, envelope);
     const offset = 44 + i * channels * bytesPerSample;
-    buffer.writeInt16LE(Math.round(sample * leftGain), offset);
-    buffer.writeInt16LE(Math.round(sample * rightGain), offset + 2);
+    buffer.writeInt16LE(clampPcm16(sample * leftGain), offset);
+    buffer.writeInt16LE(clampPcm16(sample * rightGain), offset + 2);
   }
 
   return buffer;
+}
+
+function clampPcm16(value) {
+  return Math.max(-32768, Math.min(32767, Math.round(value)));
 }
 
 function clockToPan(clock) {
