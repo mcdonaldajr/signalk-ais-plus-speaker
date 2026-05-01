@@ -91,6 +91,11 @@ app.post('/api/stop', (_req, res) => {
   broadcast();
 });
 
+app.post('/api/exit', (_req, res) => {
+  res.json({ ok: true });
+  setTimeout(shutdown, 100);
+});
+
 app.post('/api/access-request', async (_req, res) => {
   try {
     const response = await requestSignalKAccess();
@@ -487,15 +492,16 @@ function handleNotification(pathName, value, source) {
     stats.filteredNotifications += 1;
     return;
   }
-  const methods = normalizeMethods(value.method);
+  const alertEvent = value.data?.alertEvent && typeof value.data.alertEvent === 'object' ? value.data.alertEvent : {};
   const announcement = value.data?.announcement || {};
-  const message = String(value.message || '').trim();
-  if (!message || !methods.includes('sound') || announcement.shouldAnnounce === false) {
+  const methods = normalizeMethods(alertEvent.methods || value.method);
+  const message = String(alertEvent.message || value.message || '').trim();
+  if (!message || !methods.includes('sound') || alertEvent.shouldAnnounce === false || announcement.shouldAnnounce === false) {
     stats.filteredNotifications += 1;
     if (config.debug) {
       logEvent(
         'debug',
-        `Filtered ${pathName}: message=${Boolean(message)} methods=${methods.join(',') || 'none'} shouldAnnounce=${announcement.shouldAnnounce}`
+        `Filtered ${pathName}: message=${Boolean(message)} methods=${methods.join(',') || 'none'} shouldAnnounce=${alertEvent.shouldAnnounce ?? announcement.shouldAnnounce}`
       );
     }
     return;
@@ -503,11 +509,13 @@ function handleNotification(pathName, value, source) {
   stats.soundNotifications += 1;
 
   const entry = {
-    id: String(announcement.id || `${pathName}-${Date.now()}`),
+    id: String(alertEvent.id || announcement.id || `${pathName}-${Date.now()}`),
     message,
-    severity: String(value.state || value.data?.alarmState || 'alert'),
-    category: String(value.data?.category || 'cpa'),
-    ts: String(announcement.ts || new Date().toISOString()),
+    severity: String(alertEvent.state || value.state || value.data?.alarmState || 'alert'),
+    category: String(alertEvent.category || value.data?.category || 'cpa'),
+    clock: alertEvent.clock,
+    sizeCategory: alertEvent.sizeCategory,
+    ts: String(alertEvent.ts || announcement.ts || new Date().toISOString()),
     source
   };
   enqueueSpeech(entry);
@@ -596,6 +604,7 @@ function extractClockPosition(entry) {
 }
 
 function extractVesselSize(entry) {
+  if (['small', 'medium', 'large'].includes(entry?.sizeCategory)) return entry.sizeCategory;
   const message = String(entry?.message || '').toLowerCase();
   if (/\b(fast\s+)?large\s+vessel\b/.test(message)) return 'large';
   if (/\bmedium\s+vessel\b/.test(message)) return 'medium';
@@ -800,9 +809,13 @@ function broadcast() {
 }
 
 function shutdown() {
+  logEvent('warning', 'AIS Plus Speaker shutting down');
   clearTimeout(reconnectTimer);
   clearTimeout(accessPollTimer);
   signalKSocket?.close();
+  for (const client of clients) {
+    client.end();
+  }
   server.close(() => process.exit(0));
-  setTimeout(() => process.exit(0), 2000).unref();
+  setTimeout(() => process.exit(0), 1000).unref();
 }

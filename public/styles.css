@@ -46,6 +46,28 @@ h2 {
   margin-bottom: 14px;
 }
 
+.d-none {
+  display: none !important;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.tab {
+  background: #dfeaf1;
+  color: #174f7a;
+  border-color: #b7c8d4;
+}
+
+.tab.active {
+  background: #176da3;
+  color: white;
+  border-color: #174f7a;
+}
+
 .controls {
   display: grid;
   gap: 14px;
@@ -106,10 +128,19 @@ button:disabled {
   cursor: default;
 }
 
+.dangerButton {
+  background: #b42318;
+  border-color: #8f1d15;
+}
+
 .buttonRow {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.buttonRow.compact {
+  margin-top: 14px;
 }
 
 .pill {
@@ -183,6 +214,17 @@ button:disabled {
   .pill {
     background: #233342;
     color: #b9d8ee;
+  }
+
+  .tab {
+    background: #233342;
+    border-color: #3b4a56;
+    color: #b9d8ee;
+  }
+
+  .tab.active {
+    background: #176da3;
+    color: white;
   }
 }
 

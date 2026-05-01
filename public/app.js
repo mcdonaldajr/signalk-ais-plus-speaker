@@ -10,9 +10,14 @@ const controls = {
   saveButton: document.getElementById('saveButton'),
   accessButton: document.getElementById('accessButton'),
   pollAccessButton: document.getElementById('pollAccessButton'),
+  exitButton: document.getElementById('exitButton'),
   testButton: document.getElementById('testButton'),
   repeatButton: document.getElementById('repeatButton'),
   clearBufferButton: document.getElementById('clearBufferButton'),
+  tabStatus: document.getElementById('tabStatus'),
+  tabConfig: document.getElementById('tabConfig'),
+  statusPane: document.getElementById('statusPane'),
+  configPane: document.getElementById('configPane'),
   accessStatus: document.getElementById('accessStatus'),
   queueCount: document.getElementById('queueCount'),
   connectionText: document.getElementById('connectionText'),
@@ -22,6 +27,15 @@ const controls = {
 };
 
 let loadedConfig = null;
+
+function showTab(name) {
+  const showConfig = name === 'config';
+  controls.configPane.classList.toggle('d-none', !showConfig);
+  controls.statusPane.classList.toggle('d-none', showConfig);
+  controls.tabConfig.classList.toggle('active', showConfig);
+  controls.tabStatus.classList.toggle('active', !showConfig);
+  localStorage.setItem('aisPlusSpeakerTab', showConfig ? 'config' : 'status');
+}
 
 async function loadConfig() {
   const response = await fetch('/api/config');
@@ -142,15 +156,25 @@ function connectEvents() {
 controls.saveButton.addEventListener('click', saveConfig);
 controls.accessButton.addEventListener('click', () => postAction('/api/access-request', controls.accessButton));
 controls.pollAccessButton.addEventListener('click', () => postAction('/api/access-poll', controls.pollAccessButton));
+controls.exitButton.addEventListener('click', async () => {
+  if (!confirm('Exit AIS Plus Speaker?')) return;
+  controls.exitButton.disabled = true;
+  await fetch('/api/exit', { method: 'POST' });
+  controls.connectionText.textContent = 'AIS Plus Speaker is stopping';
+});
 controls.testButton.addEventListener('click', () => postAction('/api/test', controls.testButton));
 controls.repeatButton.addEventListener('click', () => postAction('/api/repeat', controls.repeatButton));
 controls.clearBufferButton.addEventListener('click', () => postAction('/api/stop', controls.clearBufferButton));
+controls.tabStatus.addEventListener('click', () => showTab('status'));
+controls.tabConfig.addEventListener('click', () => showTab('config'));
 controls.enabled.addEventListener('change', saveConfig);
 controls.stereoPing.addEventListener('change', saveConfig);
 controls.speechVolume.addEventListener('input', updateVolumeLabels);
 controls.pingVolume.addEventListener('input', updateVolumeLabels);
 controls.speechVolume.addEventListener('change', saveConfig);
 controls.pingVolume.addEventListener('change', saveConfig);
+
+showTab(localStorage.getItem('aisPlusSpeakerTab') === 'config' ? 'config' : 'status');
 
 loadConfig().then(connectEvents).catch(error => {
   controls.connectionText.textContent = `Could not load config: ${error.message}`;

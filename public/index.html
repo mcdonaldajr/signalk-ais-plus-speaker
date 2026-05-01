@@ -18,7 +18,12 @@
         <div id="statusPill" class="pill">Idle</div>
       </section>
 
-      <section class="panel controls">
+      <nav class="tabs" aria-label="AIS Plus Speaker sections">
+        <button id="tabStatus" class="tab active" type="button">Status</button>
+        <button id="tabConfig" class="tab" type="button">Config</button>
+      </nav>
+
+      <section id="configPane" class="panel controls d-none">
         <label class="check">
           <input id="enabled" type="checkbox">
           <span>Enabled</span>
@@ -54,22 +59,27 @@
           <button id="saveButton" type="button">Save</button>
           <button id="accessButton" type="button">Request Signal K Access</button>
           <button id="pollAccessButton" type="button">Check Access</button>
+          <button id="exitButton" class="dangerButton" type="button">Exit Speaker</button>
+        </div>
+        <p id="accessStatus" class="subtle">Signal K access not checked.</p>
+      </section>
+
+      <section id="statusPane">
+      <section class="panel">
+        <h2>Last Message</h2>
+        <p id="lastMessage" class="message">No AIS Plus message received yet.</p>
+        <div class="buttonRow compact">
           <button id="testButton" type="button">Sound Check</button>
           <button id="repeatButton" type="button">Repeat Last</button>
           <button id="clearBufferButton" type="button">Clear Buffer</button>
         </div>
         <p class="subtle">Buffer: <span id="queueCount">0</span> message(s)</p>
-        <p id="accessStatus" class="subtle">Signal K access not checked.</p>
-      </section>
-
-      <section class="panel">
-        <h2>Last Message</h2>
-        <p id="lastMessage" class="message">No AIS Plus message received yet.</p>
       </section>
 
       <section class="panel">
         <h2>Recent Events</h2>
         <div id="events" class="events"></div>
+      </section>
       </section>
     </main>
     <script src="app.js"></script>

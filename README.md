@@ -109,6 +109,7 @@ The app discovers `.onnx` voice files in `voices/`. Select a voice in the web UI
 - **Sound Check**: speaks a local test message.
 - **Repeat Last**: replays the last received AIS Plus message.
 - **Clear Buffer**: drops queued announcements if they are too old to be useful.
+- **Exit Speaker**: stops the local speaker app from the Config tab.
 
 ## Stereo Ping
 
@@ -154,7 +155,7 @@ vessels.self.notifications.collision.*
 This app speaks only notifications where:
 
 - `method` includes `sound`
-- `message` is present
-- `data.announcement.shouldAnnounce` is not `false`
+- `data.alertEvent.message` or `message` is present
+- `data.alertEvent.shouldAnnounce` and `data.announcement.shouldAnnounce` are not `false`
 
 That means AIS Plus still owns alarm timing, repeats, muting, and false-alarm reduction.
