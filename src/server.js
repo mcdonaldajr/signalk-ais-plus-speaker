@@ -559,7 +559,7 @@ async function processQueue() {
   currentMessage = entry;
   broadcast();
   try {
-    const speechFile = await synthesizePiperWav(entry.message);
+    const speechFile = await synthesizePiperWav(formatMessageForSpeech(entry.message));
     try {
       await applyWavGain(speechFile, config.speechVolume);
       await playDirectionalPing(entry);
@@ -579,6 +579,23 @@ async function processQueue() {
     broadcast();
     processQueue();
   }
+}
+
+function formatMessageForSpeech(message) {
+  return String(message || '').replace(
+    /\b((?:fast\s+)?(?:large vessel|medium vessel|small craft|small vessel|vessel)\s+)(.+?)(\s+at\s+(?:[1-9]|1[0-2])\s+o'?clock\b)/gi,
+    (_match, prefix, vesselName, suffix) => `${prefix}${formatVesselNameForSpeech(vesselName)}${suffix}`
+  );
+}
+
+function formatVesselNameForSpeech(name) {
+  const clean = String(name || '').trim();
+  const letters = clean.match(/[A-Za-z]/g) || [];
+  const uppercaseLetters = clean.match(/[A-Z]/g) || [];
+  if (letters.length < 2 || uppercaseLetters.length / letters.length < 0.8) {
+    return clean;
+  }
+  return clean.toLowerCase().replace(/\b([a-z])/g, match => match.toUpperCase());
 }
 
 async function playDirectionalPing(entry) {

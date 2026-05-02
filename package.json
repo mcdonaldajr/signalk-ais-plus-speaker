@@ -1,6 +1,6 @@
 {
   "name": "signalk-ais-plus-speaker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Standalone Piper speech output app for AIS Plus Signal K announcements.",
   "type": "module",
   "main": "src/server.js",
