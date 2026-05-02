@@ -1,5 +1,7 @@
 # SignalK AIS Plus Speaker
 
+> **Alpha Release disclaimer:** This software is Alpha Release and has not been tested in live environments and must not be relied upon for navigation or safety. The Authors do not accept any responsibility for loss or damage as a result of using this software.
+
 Standalone Piper speech output for AIS Plus.
 
 AIS Plus remains the alarm brain. This app connects to the Signal K WebSocket stream, listens for `vessels.self.notifications.collision.*` sound notifications, and speaks the supplied message using local Piper.
